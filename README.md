@@ -1,5 +1,6 @@
 # Setup Secure traefik Dashboard Access via IP
-## **1. `docker-compose.yml`**
+## Configuration Files
+### **1. `docker-compose.yml`**
 ```yaml
 services:
   traefik:
@@ -31,9 +32,7 @@ networks:
     name: web-tools-traefik-net  # Dedicated network for Traefik
 ```
 
----
-
-## **2. `traefik.yml`**
+### **2. `traefik.yml`**
 ```yaml
 # Entrypoints for HTTP/HTTPS
 entryPoints:
