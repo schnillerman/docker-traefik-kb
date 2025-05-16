@@ -1,5 +1,7 @@
 # Setup Secure traefik Dashboard Access via IP
 ## Configuration Files
+> [!IMPORTANT]
+> Replace `[IP]` and `[password_hash]` with applicable values.
 ### **1. `docker-compose.yml`**
 ```yaml
 services:
