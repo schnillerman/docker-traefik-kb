@@ -1,3 +1,127 @@
+# Traefik as an SSL router with HTTPS
+Here’s a **complete, self-contained example** with `traefik.yml` and `docker-compose.yml` to set up Traefik as an SSL router with HTTPS. Replace placeholders (e.g., `example.com`, `your-email@example.com`, `8080`) with your values.
+
+---
+
+## File Structure
+```
+your-project/
+├── docker-compose.yml
+├── traefik.yml
+└── letsencrypt/         # Directory for SSL certificates
+    └── acme.json        # Traefik will create this (ensure permissions: chmod 600)
+```
+
+---
+
+## 1. `traefik.yml` (Static Configuration)
+```yaml
+# Static configuration (entrypoints, certificates, providers)
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+  websecure:
+    address: ":443"
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: your-email@example.com   # Replace with your email
+      storage: /letsencrypt/acme.json
+      httpChallenge:
+        entryPoint: web
+
+providers:
+  docker:
+    exposedByDefault: false   # Only containers with `traefik.enable=true` are exposed
+    network: traefik-public   # Shared network
+```
+
+---
+
+## 2. `docker-compose.yml`
+```yaml
+version: "3.8"
+
+services:
+  # Traefik Reverse Proxy
+  traefik:
+    image: traefik:v2.10
+    container_name: traefik
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro  # Docker discovery
+      - ./traefik.yml:/etc/traefik/traefik.yml        # Static config
+      - ./letsencrypt:/letsencrypt                    # SSL certificates
+    networks:
+      - traefik-public
+
+  # Your Application
+  your-app:
+    image: your-app-image        # Replace with your app's image
+    restart: unless-stopped
+    networks:
+      - traefik-public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.https-router.rule=Host(`example.com`)"  # Your domain
+      - "traefik.http.routers.https-router.entrypoints=websecure"
+      - "traefik.http.routers.https-router.tls=true"
+      - "traefik.http.routers.https-router.tls.certresolver=letsencrypt"
+      - "traefik.http.services.your-app.loadbalancer.server.port=8080"  # Your app's port
+
+networks:
+  traefik-public:
+    external: true   # Create it first: `docker network create traefik-public`
+```
+
+---
+
+## 3. Setup Steps
+
+1. **Create the network**:
+   ```bash
+   docker network create traefik-public
+   ```
+
+2. **Create `letsencrypt` directory and set permissions**:
+   ```bash
+   mkdir -p letsencrypt && touch letsencrypt/acme.json && chmod 600 letsencrypt/acme.json
+   ```
+
+3. **Start Traefik and your app**:
+   ```bash
+   docker-compose up -d
+   ```
+
+---
+
+## How It Works
+1. **Traefik Configuration**:
+   - Listens on ports `80` (HTTP) and `443` (HTTPS).
+   - Automatically redirects HTTP → HTTPS using the `web` entrypoint redirection.
+   - Uses Let’s Encrypt to issue/renew SSL certificates via the `letsencrypt` resolver.
+   - Discovers containers on the `traefik-public` network.
+
+2. **Your Application**:
+   - Exposed via Traefik with TLS using the domain `example.com`.
+   - Traffic is routed to the container’s internal port `8080`.
+
+---
+
+## Notes
+- Replace `example.com` with your domain and ensure DNS points to your server’s IP.
+- Replace `your-email@example.com` with your email (for Let’s Encrypt expiry notices).
+- Replace `8080` with your app’s internal port (e.g., `3000` for Node.js, `80` for Nginx).
+
 # Setup Secure traefik Dashboard Access via IP
 ## Configuration Files
 > [!IMPORTANT]
